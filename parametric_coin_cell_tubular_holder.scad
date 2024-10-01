@@ -17,13 +17,13 @@ use <threads.scad>;
 // Always read the specs for your specific battery, most are not dimensional to their 
 // names.
 
-// default is a CR2477 found lyring around.  measure and adjust
+// default is a CR1632 found lyring around.  measure and adjust
 // yourself!
 
 // coin cell dimensions and count
-battery_diameter = 24.5;
-battery_height = 7.9;
-battery_count = 2;
+battery_diameter = 16.2;
+battery_height = 3.4;
+battery_count = 6;
 
 battery_spring_holder = true;
 
@@ -33,22 +33,22 @@ battery_spring_holder = true;
 debug = false;
 
 // width of all features except walls
-feature_width = 1.6;
+feature_width = 2.2;
 
-cylinder_wall_width = 3;
+cylinder_wall_width = 2.2;
 
-cylinder_plug_height = 9;
+cylinder_plug_height = 6;
 cylinder_plug_thread_pitch = 2.5;
 
-cylinder_cap_height = 8;
-    groove_count = 5;
-    groove_width = 6;
+cylinder_cap_height = 6;
+    groove_count = 3;
+    groove_width = 4;
     groove_depth = 2;
 
 // calculated slop between
 // (batteries and tray / 2)
 // (tray and cylinder)
-part_allowance = 0.2;
+part_allowance = 0.3;
 
 // thread allowance is ADDITIONAL to part_allowance only on threads.
 thread_allowance = 0.3;
@@ -56,7 +56,7 @@ thread_allowance = 0.3;
 // Derived values.
 part_batt_cyl_diameter = (battery_diameter + part_allowance + ( 2 * feature_width + part_allowance) + (2 * cylinder_wall_width));
 battery_stack_height = feature_width  + (battery_count * (battery_height + part_allowance + feature_width));
-part_batt_cyl_height = (battery_stack_height + cylinder_plug_height + cylinder_wall_width + feature_width);
+part_batt_cyl_height = (battery_stack_height + cylinder_plug_height + cylinder_wall_width + feature_width + part_allowance);
 
 //inner cutout
 part_batt_cyl_inner_diameter = (part_batt_cyl_diameter - 2 * cylinder_wall_width); 
@@ -96,8 +96,7 @@ module battery_cap() {
 
         for (i=[1:groove_count])  {
          color("white") 
-            translate
-            (
+            translate(
             [part_batt_cyl_diameter/2*cos(i*(360/groove_count)),
              part_batt_cyl_diameter/2*sin(i*(360/groove_count)),
              groove_depth])
@@ -150,12 +149,22 @@ module groove() {
 }
 
 module battery_tray() {
-    rotate([0,0,-90]) keyhole();
-
-    translate([0,0,feature_width]) 
     difference() {
         union() {
-            color("green") cylinder (d=tray_diameter, h=battery_stack_height);
+            color("green")  rotate([0,0,-90]) keyhole();
+            difference() {
+                translate([0,0,feature_width]) color("green") cylinder (d=tray_diameter, h=battery_stack_height);
+                
+                //halfpipe
+                color("white") 
+                translate([
+                -tray_diameter/2,
+                -tray_diameter-part_allowance,
+                feature_width-0.006])
+                    cube([tray_diameter + part_allowance,
+                          tray_diameter, 
+                          battery_stack_height + part_allowance], false);
+                    }
         }
 
         // flat bottom 
@@ -168,25 +177,15 @@ module battery_tray() {
                 part_batt_cyl_diameter,
                 battery_stack_height + feature_width + part_allowance],false) ;
 
-        //halfpipe
-        color("white") 
-        translate([
-        -tray_diameter/2,
-        -tray_diameter-part_allowance,
-        -0.005])
-            cube([tray_diameter + part_allowance,
-                  tray_diameter, 
-                  battery_stack_height + part_allowance], false);
-
         // first battery cutout
         color("purple")
-            translate([0,0,feature_width])
+            translate([0,0,feature_width+feature_width])
                 cylinder(d=(battery_diameter + part_allowance), h=battery_height + part_allowance);
 
         if (battery_count > 1) {
             for ( i=[1:battery_count-1] ) {
                 color("cyan")
-                    translate([0,0, feature_width + ((feature_width + battery_height + part_allowance) * i)])
+                    translate([0,0, (feature_width+feature_width) + ((feature_width + battery_height + part_allowance) * i)])
                         cylinder(d=(battery_diameter + part_allowance), h=battery_height + part_allowance);
 
             }
@@ -199,13 +198,14 @@ module key() {
         cylinder(d=tray_diameter/2,h=feature_width, $fn=3);
 }
 
+keyhole_allowance = 0.75;
 module keyhole() {
     difference() {
         color("green")
         cylinder(d=tray_diameter,h=feature_width);
         color("lime")
         translate([0,0,-0.003])
-        cylinder(d=tray_diameter/2,h=feature_width+0.006, $fn=3);
+        cylinder(d=tray_diameter/2+part_allowance+keyhole_allowance,h=feature_width+0.006, $fn=3);
     }
 }
 
@@ -221,18 +221,21 @@ module keyhole() {
 
 *battery_cap();
 *battery_tray();
-battery_cylinder();
+*battery_cylinder();
 
-// cap with tray, aligned.  May print fucked up.
-*union() { battery_cap(); translate([0,0,cylinder_cap_height+cylinder_plug_height]) battery_tray(); };
+demo();
+
+*assemble();
 
 // Yay, display of objects in a line
-*translate([-45,0,0]) battery_cap();
-*translate([0,0,0]) battery_tray();
-*translate([45,0,0]) 
+module demo() {
+translate([-45,0,0]) battery_cap();
+translate([0,0,0]) battery_tray();
+translate([45,0,0]) 
     rotate([0,180,0]) 
         translate([0,0,-part_batt_cyl_height])
             battery_cylinder();
+}
 
 // Assembled unit for review
 module assemble() {
